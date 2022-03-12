@@ -1,0 +1,96 @@
+version: '3.6'
+services:
+  telegraf:
+    container_name: telegraf_container
+    image: telegraf:1.18-alpine
+    volumes:
+      - ./telegraf/etc/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /:/hostfs:ro
+      - /etc:/hostfs/etc:ro
+      - /proc:/hostfs/proc:ro
+      - /sys:/hostfs/sys:ro
+      - /var/run/utmp:/var/run/utmp:ro
+    environment: 
+      HOST_ETC: /hostfs/etc
+      HOST_PROC: /hostfs/proc
+      HOST_SYS: /hostfs/sys
+      HOST_MOUNT_PREFIX: /hostfs
+    depends_on:
+      - influxdb
+    links:
+      - influxdb
+    ports:
+      - "8125:8125/udp"
+    restart: unless-stopped
+
+  influxdb:
+    container_name: influxdb_container
+    image: influxdb:1.8-alpine
+    env_file: configuration.env
+    ports:
+      - "8086:8086"
+    volumes:
+      - ./:/imports
+      - influxdb_data:/var/lib/influxdb
+    restart: unless-stopped
+
+  grafana:
+    container_name: grafana_container
+    image: grafana/grafana:8.0.2
+    depends_on:
+      - influxdb
+    env_file: configuration.env
+    links:
+      - influxdb
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+      - ./grafana/dashboards/:/var/lib/grafana/dashboards/
+    restart: unless-stopped
+
+  postgres:
+    container_name: postgres_container
+    image: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      PGDATA: /data/postgres
+    volumes:
+      - postgres:/data/postgres
+#    depends_on:
+#      - influxdb
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+#    networks:
+#      - postgres
+
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+#    depends_on:
+#      - influxdb
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    restart: unless-stopped
+#    networks:
+#      - postgres
+      
+#networks:
+#  postgres:
+#    driver: bridge
+
+volumes:
+  grafana_data: {}
+  influxdb_data: {}
+  postgres:
+  pgadmin:

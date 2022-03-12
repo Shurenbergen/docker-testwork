@@ -1,0 +1,62 @@
+---
+- hosts: all
+  become: yes
+  gather_facts: false
+  
+  vars: 
+    compose_project_dir: "/home/ubuntu/docker-testwork/"
+
+  tasks:
+  
+  - name: Update repository
+    apt_repository:
+      repo: 'ppa:git-core/ppa'
+      state: present
+  
+  - name: Install git
+    apt:
+      name: git
+      state: present
+      update_cache: yes
+  
+  - name: add GPG key
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+  
+  - name: Add Docker Repository
+    apt_repository:
+      repo: deb https://download.docker.com/linux/ubuntu bionic stable
+      state: present
+
+  - name: Install docker
+    remote_user: ubuntu
+    apt:
+      name: docker-ce
+      state: present
+      update_cache: yes
+
+    tags:
+      - docker
+  
+  - name: Add remote "ubuntu" user to "docker" group
+    remote_user: ubuntu
+    user:
+      name: "ubuntu"
+      group: "docker"
+      append: yes
+    tags:
+      - docker
+  
+  - name: Install docker-compose
+    remote_user: ubuntu
+    get_url: 
+      url : https://github.com/docker/compose/releases/download/v2.3.1/docker-compose-linux-x86_64
+      dest: /usr/local/bin/docker-compose
+      mode: 'u+x,g+x'
+  
+  - name: Send file to remote
+    copy: src="{{ compose_project_dir }}" dest="{{ compose_project_dir }}"
+ 
+  - name: Run docker-compose up
+    command: docker-compose -f "{{ compose_project_dir }}"/docker-compose.yml up -d
