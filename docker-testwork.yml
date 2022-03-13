@@ -2,10 +2,10 @@
 - hosts: all
   become: yes
   gather_facts: false
-  
+ 
   vars: 
-    compose_project_dir: "/home/ubuntu/docker-testwork/"
-
+    user: "ubuntu"
+  
   tasks:
   
   - name: Update repository
@@ -30,33 +30,33 @@
       state: present
 
   - name: Install docker
-    remote_user: ubuntu
+    remote_user: "{{ user }}"
     apt:
       name: docker-ce
       state: present
       update_cache: yes
-
-    tags:
-      - docker
   
-  - name: Add remote "ubuntu" user to "docker" group
-    remote_user: ubuntu
+  - name: Add remote "{{ user }}" user to "docker" group
+    remote_user: "{{ user }}"
     user:
-      name: "ubuntu"
+      name: "{{ user }}"
       group: "docker"
       append: yes
-    tags:
-      - docker
   
   - name: Install docker-compose
-    remote_user: ubuntu
+    remote_user: "{{ user }}"
     get_url: 
       url : https://github.com/docker/compose/releases/download/v2.3.1/docker-compose-linux-x86_64
       dest: /usr/local/bin/docker-compose
       mode: 'u+x,g+x'
-  
-  - name: Send file to remote
-    copy: src="{{ compose_project_dir }}" dest="{{ compose_project_dir }}"
- 
+
+  - name: Clone a repo from git to directory
+    ansible.builtin.git:
+      repo: https://github.com/Shurenbergen/docker-testwork
+      dest: /home/{{ user }}/docker-testwork
+      clone: yes
+
   - name: Run docker-compose up
-    command: docker-compose -f "{{ compose_project_dir }}"/docker-compose.yml up -d
+    command: docker-compose -f /home/{{ user }}/docker-testwork/docker-compose.yml up -d
+
+    
